@@ -10,11 +10,9 @@ module "os" {
   source       = "./os"
   vm_os_simple = var.vm_os_simple
 }
-
-resource "azurerm_resource_group" "vm" {
-  name     = var.resource_group_name
-  location = var.location
-  tags     = var.tags
+  
+data "azurerm_resource_group" "vm" {
+  name = var.resource_group_name
 }
 
 resource "random_id" "vm-sa" {
@@ -28,7 +26,7 @@ resource "random_id" "vm-sa" {
 resource "azurerm_storage_account" "vm-sa" {
   count                    = var.boot_diagnostics ? 1 : 0
   name                     = "bootdiag${lower(random_id.vm-sa.hex)}"
-  resource_group_name      = azurerm_resource_group.vm.name
+  resource_group_name      = data.azurerm_resource_group.vm.name
   location                 = var.location
   account_tier             = element(split("_", var.boot_diagnostics_sa_type), 0)
   account_replication_type = element(split("_", var.boot_diagnostics_sa_type), 1)
@@ -39,7 +37,7 @@ resource "azurerm_virtual_machine" "vm-linux" {
   count                         = ! contains(list(var.vm_os_simple, var.vm_os_offer), "Windows") && ! var.is_windows_image && ! var.data_disk ? var.nb_instances : 0
   name                          = "${var.vm_hostname}${count.index}"
   location                      = var.location
-  resource_group_name           = azurerm_resource_group.vm.name
+  resource_group_name           = data.azurerm_resource_group.vm.name
   availability_set_id           = azurerm_availability_set.vm.id
   vm_size                       = var.vm_size
   network_interface_ids         = [element(azurerm_network_interface.vm.*.id, count.index)]
